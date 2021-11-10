@@ -1,0 +1,264 @@
+--credits to Ciazware: this is a private edit lol
+--[[
+local APartName = "HumanoidRootPart"
+local AimPart =  APartName  -- For R15 Games: {UpperTorso, LowerTorso, HumanoidRootPart, Head} | For R6 Games: {Head, Torso, HumanoidRootPart}
+local AimlockToggleKey = "Y" -- Toggles Aimbot On/Off 
+local AimRadius = 50 -- How far away from someones character you want to lock on at
+local ThirdPerson = false -- Locking onto someone in your Third Person POV
+local FirstPerson = true -- Locking onto someone in your First Person POV
+local TeamCheck = false -- Check if Target is on your Team (True means it wont lock onto your teamates, false is vice versa) (Set it to false if there are no teams)
+local PredictMovement = true -- Predicts if they are moving in fast velocity (like jumping) so the aimbot will go a bit faster to match their speed 
+local PredictionVelocity = 10 -- The speed of the PredictMovement feature 
+local DisableLoadTimer = false -- Disables Timer for loading
+
+local CanSwitchAimPart = true -- This will change your AimPart based on random time
+local SwitchTime = {0.35, 0.25} -- Time between switches
+local HeadChance = 45
+local AimParts = {"Head", APartName}
+]]--
+
+local MaplewareUniversalAimbotLoadingTime
+
+if not DisableLoadTimer then
+MaplewareUniversalAimbotLoadingTime = os.clock()
+end
+
+if MaplewareUniversalAimbotLoaded == true then
+	Notify("Mapleware", "Script Loaded Already", "", 3)
+	return 
+end
+
+local RandomWelcome = {":3","RIP Ciazware","AAAAAAAAAAAAAAAA", "im 2 year old", "Why does this exist?","Succesfully loaded!" , "Universal Aimbot loaded successfully!", "help me", "stuck in basement","( •_•)", "╰(● ⋏ ●)╯", "ᕙ(⇀‸↼‶)ᕗ", "=＾● ⋏ ●＾=", "=^.^="}
+local Players, Uis, RService, SGui = game:GetService"Players", game:GetService"UserInputService", game:GetService"RunService", game:GetService"StarterGui";
+local Client, Mouse, Camera, CF, RNew, Vec3, Vec2 = Players.LocalPlayer, Players.LocalPlayer:GetMouse(), workspace.CurrentCamera, CFrame.new, Ray.new, Vector3.new, Vector2.new;
+local Aimlock, MousePressed, CanNotify, CanSwitch, Mouse1Pressed = true, false, false, false, false
+local AimlockTarget;
+MaplewareUniversalAimbotLoaded = true
+
+DelaySwitch = function()
+	local StartTime = os.clock() repeat task.wait() if Mouse1Pressed then break end until (os.clock() - StartTime) >= 1.25
+	AimPart = APartName
+end
+
+AimPartSwitch = function()
+	if CanSwitch and Mouse1Pressed then
+		local Roll = Random.new():NextInteger(0, 100)
+			if Roll >= HeadChance then
+				AimPart = APartName
+			else
+				AimPart = "Head"
+			end	
+		task.spawn(function()
+			while CanSwitch and Mouse1Pressed do
+				local SwitchAimPart = AimParts[math.random(1,#AimParts)]
+				local Time = SwitchTime[math.random(1,#SwitchTime)]
+				local StartTime = os.clock() repeat task.wait() if not Mouse1Pressed then DelaySwitch() break end until (os.clock() - StartTime) >= Time
+				if CanSwitch and Mouse1Pressed then
+					local Roll = Random.new():NextInteger(0, 100)
+					if Roll >= HeadChance then
+						AimPart = APartName
+					else
+						AimPart = "Head"
+					end
+				end
+			end
+		end)
+	else 
+	end
+end
+
+SeparateNotify = function(title, text, icon, time) 
+	SGui:SetCore("SendNotification",{
+		Title = title;
+		Text = text;
+		Icon = "rbxassetid://6046371067";
+		Duration = time;
+	})
+	local NotifySound = Instance.new("Sound", workspace)
+	NotifySound.SoundId = "rbxassetid://3964634254"
+	NotifySound:Play()
+	game.Debris:AddItem(NotifySound, 2.3)
+end
+
+Notify = function(title, text, icon, time)
+	if CanNotify == true then 
+		if not time or not type(time) == "number" then time = 3 end
+		SGui:SetCore("SendNotification",{
+			Title = title;
+			Text = text;
+			Icon = "rbxassetid://6046395388";
+			Duration = time;
+		}) 
+	end
+end
+
+local WorldToViewportPoint = function(P)
+	return Camera:WorldToViewportPoint(P)
+end
+
+local WorldToScreenPoint = function(P)
+	return Camera.WorldToScreenPoint(Camera, P)
+end
+
+local GetObscuringObjects = function(T)
+	if T and T:FindFirstChild(AimPart) and Client and Client.Character:FindFirstChild("Head") then 
+		local RayPos = workspace:FindPartOnRay(RNew(T:FindFirstChild(AimPart).Position, Client.Character.Head.Position))
+		if RayPos then return RayPos:IsDescendantOf(T) end
+	end
+end
+
+local GetNearestTarget = function()
+	-- Credits to whoever made this, i didnt make it, and my own mouse2plr function kinda sucks
+	local players = {}
+	local PLAYER_HOLD  = {}
+	local DISTANCES = {}
+	for i, v in pairs(Players:GetPlayers()) do
+		if v ~= Client then
+			table.insert(players, v)
+		end
+	end
+	for i, v in pairs(players) do
+		if v.Character ~= nil then
+			local AIM = v.Character:FindFirstChild("Head")
+			if TeamCheck == true and v.Team ~= Client.Team then
+				local DISTANCE = (v.Character:FindFirstChild("Head").Position - game.Workspace.CurrentCamera.CFrame.p).magnitude
+				local RAY = Ray.new(game.Workspace.CurrentCamera.CFrame.p, (Mouse.Hit.p - game.Workspace.CurrentCamera.CFrame.p).unit * DISTANCE)
+				local HIT,POS = game.Workspace:FindPartOnRay(RAY, game.Workspace)
+				local DIFF = math.floor((POS - AIM.Position).magnitude)
+				PLAYER_HOLD[v.Name .. i] = {}
+				PLAYER_HOLD[v.Name .. i].dist= DISTANCE
+				PLAYER_HOLD[v.Name .. i].plr = v
+				PLAYER_HOLD[v.Name .. i].diff = DIFF
+				table.insert(DISTANCES, DIFF)
+			elseif TeamCheck == false and v.Team == Client.Team then 
+				local DISTANCE = (v.Character:FindFirstChild("Head").Position - game.Workspace.CurrentCamera.CFrame.p).magnitude
+				local RAY = Ray.new(game.Workspace.CurrentCamera.CFrame.p, (Mouse.Hit.p - game.Workspace.CurrentCamera.CFrame.p).unit * DISTANCE)
+				local HIT,POS = game.Workspace:FindPartOnRay(RAY, game.Workspace)
+				local DIFF = math.floor((POS - AIM.Position).magnitude)
+				PLAYER_HOLD[v.Name .. i] = {}
+				PLAYER_HOLD[v.Name .. i].dist= DISTANCE
+				PLAYER_HOLD[v.Name .. i].plr = v
+				PLAYER_HOLD[v.Name .. i].diff = DIFF
+				table.insert(DISTANCES, DIFF)
+			end
+		end
+	end
+
+	if unpack(DISTANCES) == nil then
+		return nil
+	end
+
+	local L_DISTANCE = math.floor(math.min(unpack(DISTANCES)))
+	if L_DISTANCE > AimRadius then
+		return nil
+	end
+
+	for i, v in pairs(PLAYER_HOLD) do
+		if v.diff == L_DISTANCE then
+			return v.plr
+		end
+	end
+	return nil
+end
+
+local CheckTeamsChildren = function()
+	if workspace and workspace:FindFirstChild"Teams" then 
+		if TeamCheck == true then
+			if #workspace.Teams:GetChildren() == 0 then 
+				TeamCheck = false 
+				SeparateNotify("Mapleware", "TeamCheck set to: "..tostring(TeamCheck).." because there are no teams!", "", 3)
+			end
+		end
+	end
+end
+CheckTeamsChildren()
+
+Uis.InputBegan:Connect(function(Key)
+	if not (Uis:GetFocusedTextBox()) then 
+		if Key.UserInputType == Enum.UserInputType.MouseButton2 then 
+			pcall(function()
+				if MousePressed ~= true then MousePressed = true end 
+				local Target;Target = GetNearestTarget()
+				if Target ~= nil then 
+					AimlockTarget = Target
+					Notify("Mapleware", "Aimlock Target: "..tostring(AimlockTarget), "", 3)
+					if CanSwitchAimPart then
+						CanSwitch = true
+					end
+				end
+			end)
+		end
+		if Key.UserInputType == Enum.UserInputType.MouseButton1 and CanSwitch then 
+			if Mouse1Pressed ~= true then Mouse1Pressed = true end 
+			pcall(function()
+				AimPartSwitch()
+			end)
+		end
+		if Key.KeyCode == Enum.KeyCode[AimlockToggleKey] then 
+			Aimlock = not Aimlock
+			Notify("Mapleware", "Aimlock: "..tostring("Aimlock = "..Aimlock), "", 3)
+		end
+	end
+end)
+Uis.InputEnded:Connect(function(Key)
+	if not (Uis:GetFocusedTextBox()) then 
+		if Key.UserInputType == Enum.UserInputType.MouseButton2 then 
+			if CanSwitch ~= false then
+				CanSwitch = false
+			end
+			if AimlockTarget ~= nil then AimlockTarget = nil end
+			if MousePressed ~= false then 
+				MousePressed = false 
+			end
+		end
+		if Key.UserInputType == Enum.UserInputType.MouseButton1 then 
+			AimPartSwitch()
+			if Mouse1Pressed ~= false then
+				Mouse1Pressed = false
+			end
+		end 
+	end
+end)
+
+RService.RenderStepped:Connect(function()
+	if FirstPerson == true and ThirdPerson == false then 
+		if (Camera.Focus.p - Camera.CoordinateFrame.p).Magnitude <= 1 then 
+			CanNotify = true 
+		else 
+			CanNotify = false 
+		end
+	elseif ThirdPerson == true and FirstPerson == false then 
+		if (Camera.Focus.p - Camera.CoordinateFrame.p).Magnitude > 1 then 
+			CanNotify = true 
+		else 
+			CanNotify = false 
+		end
+	end
+	if Aimlock == true and MousePressed == true then 
+		if AimlockTarget and AimlockTarget.Character and AimlockTarget.Character:FindFirstChild(AimPart) then 
+			if FirstPerson == true then
+				if CanNotify == true then
+					if PredictMovement == true then 
+						Camera.CFrame = CF(Camera.CFrame.p, AimlockTarget.Character[AimPart].Position + AimlockTarget.Character[AimPart].Velocity/PredictionVelocity)
+					elseif PredictMovement == false then 
+						Camera.CFrame = CF(Camera.CFrame.p, AimlockTarget.Character[AimPart].Position)
+					end
+				end
+			elseif ThirdPerson == true then 
+				if CanNotify == true then
+					if PredictMovement == true then 
+						Camera.CFrame = CF(Camera.CFrame.p, AimlockTarget.Character[AimPart].Position + AimlockTarget.Character[AimPart].Velocity/PredictionVelocity)
+					elseif PredictMovement == false then 
+						Camera.CFrame = CF(Camera.CFrame.p, AimlockTarget.Character[AimPart].Position)
+					end
+				end 
+			end
+		end
+	end
+end)
+
+if not DisableLoadTimer then
+	SeparateNotify("Mapleware", RandomWelcome[math.random(1,#RandomWelcome)].." Time Loaded: "..string.format("%.7f", tostring(os.clock() - MaplewareUniversalAimbotLoadingTime)), "", 3)
+else
+	SeparateNotify("Mapleware", ""..RandomWelcome[math.random(1,#RandomWelcome)], 3)
+end
