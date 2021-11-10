@@ -74,10 +74,6 @@ SeparateNotify = function(title, text, icon, time)
 		Icon = "rbxassetid://6046371067";
 		Duration = time;
 	})
-	local NotifySound = Instance.new("Sound", workspace)
-	NotifySound.SoundId = "rbxassetid://3964634254"
-	NotifySound:Play()
-	game.Debris:AddItem(NotifySound, 2.3)
 end
 
 Notify = function(title, text, icon, time)
